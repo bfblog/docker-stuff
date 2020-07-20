@@ -6,9 +6,9 @@ CURRENT_DIR := $(shell cd -P -- '$(shell dirname -- "$0")' && pwd -P)
 BUILD_DATE := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 REVISION := $(shell git rev-parse --short HEAD)
 VERSION := $(shell git describe --abbrev=0)
-IMAGE := "lp/hugo-builder"
+IMAGE := "bfblog/spark"
 
-all: print_details
+all: print_details lint dockerfile
 
 print_details:
 	@echo "--------------------------------------------------"
@@ -28,9 +28,15 @@ dockerfile:
 	        --build-arg IMAGE=$(IMAGE) \
   	        .
 	@echo "docker image ${IMAGE}:${VERSION} successfully build"
+	@echo -e "\ninspect image labels:"
+	@docker inspect -f '{{range $$k, $$v := .Config.Labels -}}{{ $$k }}={{ $$v }}{{printf "\n"}}{{ end -}}' ${IMAGE}:${VERSION}
+
+
+lint: hado_lint dockerfile_lint
+	@echo "lint completed"
 
 hado_lint:
-	@echo "applyint hadolint ..."
+	@echo "applying hadolint ..."
 	@docker run --rm -i hadolint/hadolint < Dockerfile
 
 dockerfile_lint:
