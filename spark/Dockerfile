@@ -2,8 +2,8 @@ FROM alpine:3.12.0 AS builder
 
 WORKDIR /tmp
 
-ENV SPARK_VERSION=3.0.0
-ENV HADOOP_VERSION=2.7
+ARG SPARK_VERSION=3.0.0
+ARG HADOOP_VERSION=2.7
 
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
@@ -24,7 +24,7 @@ RUN mkdir spark_runtime
 WORKDIR /spark_home
 RUN tar xzvf /tmp/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz --strip-components=1 
 
-FROM alpine:3.12.0 
+FROM openjdk:8-jre-slim 
 
 ARG BUILD_DATE
 ARG REVISION
@@ -52,20 +52,38 @@ LABEL name="${IMAGE}" \
       org.opencontainers.image.licenses="n/a" \
       org.opencontainers.image.ref.name="${IMAGE}"
 
-SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 HEALTHCHECK --interval=5s --timeout=3s CMD if [ -f /src/public/index.html ] ; then exit 0; else exit 1; fi
 
-RUN apk add --no-cache tini=0.19.0-r0 openjdk8=8.242.08-r2 bash=5.0.17-r0 \
-    && addgroup -Sg 1000 spark \
-    && adduser -SG spark -u 1000 -h /src spark
+# hadolint ignore=DL4005
+RUN sed -i 's/http:/https:/g' /etc/apt/sources.list \
+    && apt-get update  \
+    && ln -s /lib /lib64 \
+    && apt-get install --no-install-recommends -y procps=2:3.3.15-2 bash=5.0-4 tini=0.18.0-1 libc6=2.28-10 libpam-modules=1.3.1-5 krb5-user=1.17-3 libnss3=2:3.42.1-1+deb10u2 \
+    && rm /bin/sh \
+    && ln -sv /bin/bash /bin/sh \
+    && echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su \
+    && chgrp root /etc/passwd && chmod ug+rw /etc/passwd \
+    && rm -rf /var/cache/apt/* \
+    && adduser --uid 202020 --shell /bin/bash --home /home/spark spark
 
 USER spark
 
 WORKDIR /home/spark
 
+COPY --from=builder /spark_home/jars ./jars
+COPY --from=builder /spark_home/bin ./bin
+COPY --from=builder /spark_home/sbin ./sbin
+COPY --from=builder /spark_home/kubernetes/dockerfiles/spark/entrypoint.sh ./
+COPY --from=builder /spark_home/examples ./examples
+COPY --from=builder /spark_home/kubernetes/tests ./tests
+COPY --from=builder /spark_home/data ./data
+
+ENV SPARK_HOME=/home/spark
+
 COPY --from=builder /spark_home .
 
-ENTRYPOINT ["/sbin/tini", "--"] 
+ENTRYPOINT ["/usr/bin/tini", "--"] 
 
 CMD ["/bin/bash", "-c", "/home/spark/bin/spark-shell" ]
