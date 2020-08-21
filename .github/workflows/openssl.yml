@@ -36,7 +36,7 @@ jobs:
       run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASS }}
     
     - name: Build Docker image
-      run: docker build -t bfblog/openssl:latest -t bfblog/openssl:${GITHUB_SHA::8} .
+      run: docker build -t bfblog/openssl:latest -t bfblog/openssl:${GITHUB_SHA::8} openssl
     
     - name: Publish Docker image
       run: docker push bfblog/openssl:latest 
