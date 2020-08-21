@@ -1,0 +1,27 @@
+[req] 
+default_bits = 2048 
+prompt = no 
+default_md = sha256 
+distinguished_name = dn 
+req_extensions = extensions
+x509_extensions = extensions
+
+[ dn ] 
+C=DE 
+ST=Nordrhein-Westfalen 
+L=Dortmund 
+O=unknown 
+OU=Entwicklung 
+emailAddress=mail@bytefusion.de
+CN = odfe-node2
+
+[ extensions ]
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = elasticsearch
+DNS.2 = elasticsearch_1
+DNS.3 = elastichq
+DNS.4 = elasticsearch
+DNS.5 = kirk
+
